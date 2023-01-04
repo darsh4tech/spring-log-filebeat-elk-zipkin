@@ -1,0 +1,88 @@
+services:
+  elasticsearch:
+    container_name: elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.5.3
+    volumes:
+      # Persistence data (mount to docker's host filesystem)
+      - ./elasticsearch/data:/usr/share/elasticsearch/data:rw              
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      #ELASTIC_PASSWORD: changeme
+
+      # Use single node discovery in order to disable production mode and avoid bootstrap checks
+      # see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
+      discovery.type: single-node
+    networks:
+      - elk
+
+  logstash:
+    container_name: logstash
+    image: docker.elastic.co/logstash/logstash:8.5.3
+    volumes:
+      # Pipeline configuration
+      # type bind mount / volume
+      - type: bind
+        source: ./logstash/logstash.conf
+        target: /usr/share/logstash/config/logstash.conf
+        read_only: true
+    ports:
+      - "25826:25826"
+      - "5044:5044"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    restart: on-failure      
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    container_name: kibana
+    image: docker.elastic.co/kibana/kibana:8.5.3
+    ports:
+      - "5601:5601"
+    restart: on-failure      
+    networks:
+      - elk
+    depends_on:
+      - elasticsearch
+
+  filebeat:
+    container_name: filebeat
+    image: docker.elastic.co/beats/filebeat:8.5.3
+    volumes:
+      - ./filebeat/filebeat.elastic.yml:/usr/share/filebeat/filebeat.yml:ro # Configuration file
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro           # Docker logs
+      - /var/run/docker.sock:/var/run/docker.sock:ro                       # Additional information about containers
+      - ./filebeat/data:/usr/share/filebeat/data:rw                        # Persistence data
+    # Allow access to log files and docker.sock
+    user: root                                                            
+    restart: on-failure
+    networks:
+      - elk
+    depends_on:
+      - logstash
+
+  log-service:
+    container_name: log-service
+    build:
+      context: spring-log-elk-sleuth-zipkin
+      dockerfile: Dockerfile
+    image: log-app:latest
+    ports:
+      - "8001:8001"
+    networks:
+      - elk
+    labels:
+      collect_logs_with_filebeat: "true"
+      decode_log_event_to_json_object: "true"
+
+networks:
+  elk:
+    #The default network driver is bridge but containers on default will not able t oconnect each other
+    # BUT In user defined bridge the containers can communicate with their name
+    driver: bridge
+    name: BELK
