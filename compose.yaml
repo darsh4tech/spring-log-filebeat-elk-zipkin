@@ -11,7 +11,7 @@ services:
     environment:
       ES_JAVA_OPTS: "-Xmx256m -Xms256m"
       ELASTIC_USERNAME: "elastic"
-      ELASTIC_PASSWORD: "123456"
+      ELASTIC_PASSWORD: "MyPw123"
 
       # Use single node discovery in order to disable production mode and avoid bootstrap checks
       # see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
@@ -34,8 +34,8 @@ services:
       - "5044:5044"
     environment:
       LS_JAVA_OPTS: "-Xmx256m -Xms256m"
-      xpack.monitoring.elasticsearch.username: "elastic"
-      xpack.monitoring.elasticsearch.password: "MyPw123"
+      xpack.monitoring.elasticsearch.username: ${ELASTIC_USERNAME}
+      xpack.monitoring.elasticsearch.password: ${ELASTIC_PASSWORD}
     restart: on-failure      
     networks:
       - elk
@@ -47,6 +47,8 @@ services:
     image: docker.elastic.co/kibana/kibana:8.5.3
     ports:
       - "5601:5601"
+    environment:
+      xpack.security.enabled: true      
     volumes:
       - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
     restart: on-failure      
@@ -59,12 +61,12 @@ services:
     container_name: filebeat
     image: docker.elastic.co/beats/filebeat:8.5.3
     volumes:
-      - ./filebeat/filebeat.logstash.yml:/usr/share/filebeat/filebeat.yml:ro # Configuration file
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro           # Docker logs
-      - /var/run/docker.sock:/var/run/docker.sock:ro                       # Additional information about containers
-      - ./filebeat/data:/usr/share/filebeat/data:rw                        # Persistence data
+      - ./filebeat/filebeat.logstash.yml:/usr/share/filebeat/filebeat.yml # Configuration file
+      - /var/lib/docker/containers:/var/lib/docker/containers           # Docker logs
+      - /var/run/docker.sock:/var/run/docker.sock                       # Additional information about containers
+      - ./filebeat/data:/usr/share/filebeat/data                        # Persistence data
     # Allow access to log files and docker.sock
-    user: root                                                            
+    user: $USER                                                            
     restart: on-failure
     networks:
       - elk
