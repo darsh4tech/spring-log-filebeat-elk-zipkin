@@ -12,7 +12,7 @@ services:
       ES_JAVA_OPTS: "-Xmx256m -Xms256m"
       ELASTIC_USERNAME: "elastic"
       ELASTIC_PASSWORD: "MyPw123"
-
+      xpack.security.enabled: "false"
       # Use single node discovery in order to disable production mode and avoid bootstrap checks
       # see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
       discovery.type: single-node
@@ -34,8 +34,9 @@ services:
       - "5044:5044"
     environment:
       LS_JAVA_OPTS: "-Xmx256m -Xms256m"
-      xpack.monitoring.elasticsearch.username: ${ELASTIC_USERNAME}
-      xpack.monitoring.elasticsearch.password: ${ELASTIC_PASSWORD}
+      xpack.security.enabled: "false"
+      # xpack.monitoring.elasticsearch.username: "elastic"
+      # xpack.monitoring.elasticsearch.password: "MyPw123"
     restart: on-failure      
     networks:
       - elk
@@ -48,7 +49,7 @@ services:
     ports:
       - "5601:5601"
     environment:
-      xpack.security.enabled: true      
+      xpack.security.enabled: "false"  
     volumes:
       - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
     restart: on-failure      
@@ -61,12 +62,12 @@ services:
     container_name: filebeat
     image: docker.elastic.co/beats/filebeat:8.5.3
     volumes:
-      - ./filebeat/filebeat.logstash.yml:/usr/share/filebeat/filebeat.yml # Configuration file
+      - ./filebeat/filebeat.logstash.yml:/usr/share/filebeat/filebeat.yml:ro # Configuration file
       - /var/lib/docker/containers:/var/lib/docker/containers           # Docker logs
       - /var/run/docker.sock:/var/run/docker.sock                       # Additional information about containers
       - ./filebeat/data:/usr/share/filebeat/data                        # Persistence data
     # Allow access to log files and docker.sock
-    user: $USER                                                            
+    user: root
     restart: on-failure
     networks:
       - elk
@@ -81,6 +82,7 @@ services:
     image: log-app:latest
     ports:
       - "8001:8001"
+      - "8090:8090"
     networks:
       - elk
     labels:

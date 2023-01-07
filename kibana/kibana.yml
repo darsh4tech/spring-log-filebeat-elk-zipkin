@@ -1,3 +1,5 @@
-elasticsearch.host: "elasticsearch:9200"
-elasticsearch.username: "elastic"
-elasticsearch.password: "MyPw123"
+elasticsearch.hosts: ["http://elasticsearch:9200/"]
+# from elastic version_8 we should use token service instead of username/password
+# follow this link: https://github.com/elastic/kibana/issues/123113#issuecomment-1374224735 
+# to know how to create service token
+elasticsearch.serviceAccountToken: "AAEAAWVsYXN0aWMva2liYW5hL2Zmc190b2tlbjpRWXRHbkVDOVE3YUFLYlJwQVZRcVVR"
