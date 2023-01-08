@@ -6,16 +6,32 @@ services:
       # Persistence data (mount to docker's host filesystem)
       - ./elasticsearch/data:/usr/share/elasticsearch/data:rw              
     ports:
-      - "9200:9200"
-      - "9300:9300"
+      - 9200:9200
+      - 9300:9300
     environment:
-      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
       ELASTIC_USERNAME: "elastic"
       ELASTIC_PASSWORD: "MyPw123"
-      xpack.security.enabled: "false"
       # Use single node discovery in order to disable production mode and avoid bootstrap checks
       # see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
       discovery.type: single-node
+      xpack.security.enabled: false
+    networks:
+      - elk
+
+  kibana:
+    container_name: kibana
+    image: docker.elastic.co/kibana/kibana:8.5.3
+    ports:
+      - 5601:5601
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+    # volumes:
+    #   - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+    # restart: on-failure      
+    depends_on:
+      - elasticsearch
     networks:
       - elk
 
@@ -23,55 +39,41 @@ services:
     container_name: logstash
     image: docker.elastic.co/logstash/logstash:8.5.3
     volumes:
-      # Pipeline configuration
-      # type bind mount / volume
-      - type: bind
-        source: ./logstash/logstash.conf
-        target: /usr/share/logstash/config/logstash.conf
-        read_only: true
+      - ./logstash/logstash.conf:/usr/share/logstash/config/logstash.conf:ro
+      # - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml
     ports:
-      - "25826:25826"
-      - "5044:5044"
+      - 25826:25826
+      - 5044:5044
+      - 9600:9600
+      - 5000:5000/tcp
+      - 5000:5000/udp
     environment:
-      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
-      xpack.security.enabled: "false"
-      # xpack.monitoring.elasticsearch.username: "elastic"
-      # xpack.monitoring.elasticsearch.password: "MyPw123"
-    restart: on-failure      
-    networks:
-      - elk
+      LS_JAVA_OPTS: "-Xms1g -Xmx1g"
+      xpack.monitoring.enabled: true
+      xpack.monitoring.elasticsearch.username: "elastic"
+      xpack.monitoring.elasticsearch.password: "MyPw123"
+      xpack.monitoring.elasticsearch.hosts: http://elasticsearch:9200
+    # restart: on-failure      
     depends_on:
       - elasticsearch
-
-  kibana:
-    container_name: kibana
-    image: docker.elastic.co/kibana/kibana:8.5.3
-    ports:
-      - "5601:5601"
-    environment:
-      xpack.security.enabled: "false"  
-    volumes:
-      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
-    restart: on-failure      
     networks:
       - elk
-    depends_on:
-      - elasticsearch
 
   filebeat:
     container_name: filebeat
     image: docker.elastic.co/beats/filebeat:8.5.3
     volumes:
-      - ./filebeat/filebeat.logstash.yml:/usr/share/filebeat/filebeat.yml:ro # Configuration file
+      - ./filebeat/filebeat.logstash.yml:/usr/share/filebeat/filebeat.yml:ro # Configuration file, must run (chown 0) to be root to work
       - /var/lib/docker/containers:/var/lib/docker/containers           # Docker logs
       - /var/run/docker.sock:/var/run/docker.sock                       # Additional information about containers
       - ./filebeat/data:/usr/share/filebeat/data                        # Persistence data
     # Allow access to log files and docker.sock
     user: root
-    restart: on-failure
+    # restart: on-failure
     networks:
       - elk
     depends_on:
+      - elasticsearch
       - logstash
 
   log-service:
@@ -81,8 +83,8 @@ services:
       dockerfile: Dockerfile
     image: log-app:latest
     ports:
-      - "8001:8001"
-      - "8090:8090"
+      - 8090:8090
+      - 8001:8001
     networks:
       - elk
     labels:
