@@ -1,3 +1,7 @@
 /.metadata/
+<<<<<<< HEAD
 elasticsearch/data/
 filebeat/data/
+=======
+/elasticsearch/data/
+>>>>>>> 90c7bad (push ignore file)
