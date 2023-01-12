@@ -1,3 +1,2 @@
 /.metadata/
-/elasticsearch/data/*
-/filebeat/data/*
+data/*
