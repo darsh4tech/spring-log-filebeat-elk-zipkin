@@ -1,2 +1,2 @@
 /.metadata/
-/elasticsearch/data/
+data/*
