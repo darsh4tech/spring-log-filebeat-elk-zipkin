@@ -1,7 +1,12 @@
 /.metadata/
 <<<<<<< HEAD
+<<<<<<< HEAD
 elasticsearch/data/
 filebeat/data/
 =======
 /elasticsearch/data/
 >>>>>>> 90c7bad (push ignore file)
+=======
+elasticsearch/data/
+filebeat/data/
+>>>>>>> c1d359d (untrack unused files)
