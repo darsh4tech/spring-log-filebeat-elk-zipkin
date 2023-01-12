@@ -4,7 +4,7 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.5.3
     volumes:
       # Persistence data (mount to docker's host filesystem)
-      - ./elasticsearch/data:/usr/share/elasticsearch/data:rw              
+      - elasticsearch_data:/usr/share/elasticsearch/data:rw              
     ports:
       - 9200:9200
       - 9300:9300
@@ -66,7 +66,7 @@ services:
       - ./filebeat/filebeat.logstash.yml:/usr/share/filebeat/filebeat.yml:ro # Configuration file, must run (chown 0) to be root to work
       - /var/lib/docker/containers:/var/lib/docker/containers           # Docker logs
       - /var/run/docker.sock:/var/run/docker.sock                       # Additional information about containers
-      - ./filebeat/data:/usr/share/filebeat/data                        # Persistence data
+      - filebeat_data:/usr/share/filebeat/data                        # Persistence data
     # Allow access to log files and docker.sock
     user: root
     # restart: on-failure
@@ -97,3 +97,7 @@ networks:
     # BUT In user defined bridge the containers can communicate with their name
     driver: bridge
     name: BELK
+
+volumes:
+  elasticsearch_data:
+  filebeat_data:
