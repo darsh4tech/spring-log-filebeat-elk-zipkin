@@ -24,7 +24,7 @@ filebeat.autodiscover:
 
 # output.console.pretty: true
 output.logstash:
-  hosts: "logstash:5044"
+  hosts: ["logstash:5044"]
   # index: myspringboot
 
-logging.metrics.enabled: false  
+logging.metrics.enabled: true  

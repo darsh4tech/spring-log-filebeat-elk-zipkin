@@ -9,7 +9,7 @@ services:
       - "9200:9200"
       - "9300:9300"
     environment:
-      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ES_JAVA_OPTS: "-Xmx2048m -Xms256m"
       #ELASTIC_PASSWORD: changeme
 
       # Use single node discovery in order to disable production mode and avoid bootstrap checks
@@ -32,7 +32,7 @@ services:
       - "25826:25826"
       - "5044:5044"
     environment:
-      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+      LS_JAVA_OPTS: "-Xmx2048m -Xms256m"
     restart: on-failure      
     networks:
       - elk
@@ -54,7 +54,7 @@ services:
     container_name: filebeat
     image: docker.elastic.co/beats/filebeat:8.5.3
     volumes:
-      - ./filebeat/filebeat.elastic.yml:/usr/share/filebeat/filebeat.yml:ro # Configuration file
+      - ./filebeat/filebeat.logstash.yml:/usr/share/filebeat/filebeat.yml:ro # Configuration file
       - /var/lib/docker/containers:/var/lib/docker/containers:ro           # Docker logs
       - /var/run/docker.sock:/var/run/docker.sock:ro                       # Additional information about containers
       - ./filebeat/data:/usr/share/filebeat/data:rw                        # Persistence data
@@ -82,7 +82,7 @@ services:
 
 networks:
   elk:
-    #The default network driver is bridge but containers on default will not able t oconnect each other
-    # BUT In user defined bridge the containers can communicate with their name
+    #The default network driver is bridge but containers on default will not able to connect each other
+    # BUT If user defined bridge the containers can communicate with their name
     driver: bridge
     name: BELK
