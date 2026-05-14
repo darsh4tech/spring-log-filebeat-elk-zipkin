@@ -84,7 +84,7 @@ This project demonstrates a production-ready microservices logging and monitorin
 ## 📋 Prerequisites
 
 - **Docker** and **Docker Compose** (v1.29+)
-- **Java 17+** (for local development)
+- **Java 21** (for local development)
 - **Maven** (for building)
 - **Git**
 
