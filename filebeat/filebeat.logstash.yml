@@ -12,6 +12,11 @@ filebeat.autodiscover:
               format: docker
               paths:
                 - "/var/lib/docker/containers/${data.docker.container.id}/*.log"
+              multiline:
+                pattern: '^[[:space:]]+(at|\\.\\.\\.|Caused by|Suppressed)'
+                match: after
+                max_lines: 5000
+                timeout: 10s
               exclude_lines: ["^\\s+[\\-`('.|_]"]  # drop ascii-art lines
               processors:
                 - decode_json_fields:

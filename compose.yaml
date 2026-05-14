@@ -77,6 +77,14 @@ services:
       - elasticsearch
       - logstash
 
+  zipkin:
+    container_name: zipkin_elk
+    image: openzipkin/zipkin:latest
+    ports:
+      - "9411:9411"
+    networks:
+        - elk
+
   log-service:
     container_name: log-service
     build:
@@ -84,8 +92,23 @@ services:
       dockerfile: Dockerfile
     image: log-app:latest
     ports:
-      - 8090:8090
       - 8001:8001
+    networks:
+      - elk
+    depends_on:
+      - second-service      
+    labels:
+      collect_logs_with_filebeat: "true"
+      decode_log_event_to_json_object: "true"
+
+  second-service:
+    container_name: second-service
+    build:
+      context: spring-test-got-trace-id
+      dockerfile: Dockerfile
+    image: second-app:latest
+    ports:
+      - 8002:8002
     networks:
       - elk
     labels:
