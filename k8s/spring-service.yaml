@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-service
+  template:
+    metadata:
+      labels:
+        app: log-service
+        # Replaces Docker labels for standard filebeat logging hints:
+        # co.elastic.logs/enabled: "true"
+        collect_logs_with_filebeat: "true"
+        decode_log_event_to_json_object: "true"
+      annotations:
+        # HINTS FOR METRICBEAT:
+        co.elastic.metrics/module: prometheus
+        co.elastic.metrics/hosts: "${data.host}:8002"
+        co.elastic.metrics/metrics_path: /actuator/prometheus
+        co.elastic.metrics/period: 15s                        
+    spec:
+      containers:
+        - name: log-service
+          image: log-service:latest
+          imagePullPolicy: Never  # Tells minikube to look locally
+          ports:
+            - containerPort: 8001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: log-service
+spec:
+  selector:
+    app: log-service
+  ports:
+    - port: 8001
+      targetPort: 8001
