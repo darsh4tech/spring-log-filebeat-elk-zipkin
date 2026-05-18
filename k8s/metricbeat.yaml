@@ -1,0 +1,151 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: metricbeat
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: metricbeat
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - namespaces
+  - pods
+  - services
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources:
+  - deployments
+  - replicasets
+  - statefulsets
+  - daemonsets
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions"]
+  resources:
+  - replicasets
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: metricbeat
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: metricbeat
+subjects:
+- kind: ServiceAccount
+  name: metricbeat
+  namespace: default
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metricbeat-config
+  namespace: default
+data:
+  metricbeat.yml: |
+    # Dynamic modules to capture system and K8s metrics
+    metricbeat.modules:
+    - module: system
+      period: 10s
+      metricsets:
+        - cpu
+        - load
+        - memory
+        - network
+        - process
+        - filesystem
+      processes: ['.*']
+      
+    - module: kubernetes
+      period: 10s
+      host: ${NODE_NAME}
+      hosts: ["localhost:10250"] # Standard kubelet endpoint
+      metricsets:
+        - node
+        - system
+        - pod
+        - container
+        - volume
+
+    # 2. Use Autodiscover for dynamic endpoints like Spring Boot Actuator
+    metricbeat.autodiscover:
+      providers:
+        - type: kubernetes
+          host: ${NODE_NAME}
+          hints.enabled: true
+          # This tells Metricbeat: if you see a pod with Prometheus hints, scrape it!
+          hints.default_config:
+            type: prometheus
+            metricsets: ["collector"]
+            hosts: ["${data.host}:${data.kubernetes.container.port}"]
+            metrics_path: /actuator/prometheus
+            period: 15s
+
+    processors:
+      - add_kubernetes_metadata:
+          host: ${NODE_NAME}
+
+    output.logstash:
+      hosts: ["logstash:5044"]
+
+    logging.metrics.enabled: true
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: metricbeat
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: metricbeat
+  template:
+    metadata:
+      labels:
+        app: metricbeat
+    spec:
+      serviceAccountName: metricbeat
+      terminationGracePeriodSeconds: 30
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      securityContext:
+        runAsUser: 0
+      containers:
+        - name: metricbeat
+          image: docker.elastic.co/beats/metricbeat:8.5.3
+          args: [
+            "-c", "/usr/share/metricbeat/metricbeat.yml",
+            "-e",
+            "--strict.perms=false"
+          ]
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: config
+              mountPath: /usr/share/metricbeat/metricbeat.yml
+              subPath: metricbeat.yml
+            - name: proc
+              mountPath: /hostfs/proc
+              readOnly: true
+            - name: cgroup
+              mountPath: /hostfs/sys/fs/cgroup
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: metricbeat-config
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup

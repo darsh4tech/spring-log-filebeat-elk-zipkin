@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: second-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: second-service
+  template:
+    metadata:
+      labels:
+        app: second-service
+        collect_logs_with_filebeat: "true"
+        decode_log_event_to_json_object: "true"
+      annotations:
+        # HINTS FOR METRICBEAT:
+        co.elastic.metrics/module: prometheus
+        co.elastic.metrics/hosts: "${data.host}:8001"
+        co.elastic.metrics/metrics_path: /actuator/prometheus
+        co.elastic.metrics/period: 15s          
+    spec:
+      containers:
+        - name: second-service
+          image: second-service:latest
+          imagePullPolicy: Never  # Tells minikube to look locally
+          ports:
+            - containerPort: 8002
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: second-service
+spec:
+  selector:
+    app: second-service
+  ports:
+    - port: 8002
+      targetPort: 8002

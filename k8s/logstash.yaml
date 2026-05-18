@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+data:
+  logstash.conf: |
+    input {
+      beats {
+        port => 5044
+      }
+    }
+
+    filter {
+      mutate {
+        add_tag => [ "logstash_filter_applied" ]
+      }
+    }
+
+    output {
+      # 1. Route Metricbeat events to their own metricbeat index
+      if [@metadata][beat] == "metricbeat" {
+        elasticsearch {
+          hosts => ["http://elasticsearch:9200"]
+          index => "urban-eye-metrics-%{+YYYY.MM.dd}"
+        }
+      }
+      
+      # 2. Route Filebeat logs to their own filebeat index
+      else if [@metadata][beat] == "filebeat" {
+        elasticsearch {
+          hosts => ["http://elasticsearch:9200"]
+          index => "urban-eye-logs-%{+YYYY.MM.dd}"
+        }
+      }
+      
+      # 3. Fallback default catch-all just in case metadata is missing
+      else {
+        elasticsearch {
+          hosts => ["http://elasticsearch:9200"]
+          index => "unknown-beats-%{+YYYY.MM.dd}"
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      containers:
+        - name: logstash
+          image: docker.elastic.co/logstash/logstash:8.5.3
+          env:
+            - name: LS_JAVA_OPTS
+              value: "-Xms1g -Xmx1g"
+            - name: xpack.monitoring.enabled
+              value: "true"
+            - name: xpack.monitoring.elasticsearch.hosts
+              value: "http://elasticsearch:9200"
+          ports:
+            - containerPort: 25826
+            - containerPort: 5044
+            - containerPort: 9600
+            - containerPort: 5000
+              protocol: TCP
+            - containerPort: 5000
+              protocol: UDP
+          volumeMounts:
+            - name: config-volume
+              mountPath: /usr/share/logstash/pipeline/logstash.conf
+              subPath: logstash.conf
+      volumes:
+        - name: config-volume
+          configMap:
+            name: logstash-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash
+spec:
+  selector:
+    app: logstash
+  ports:
+    - name: beats
+      port: 5044
+      targetPort: 5044
+    - name: web
+      port: 9600
+      targetPort: 9600
